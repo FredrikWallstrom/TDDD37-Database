@@ -1,0 +1,54 @@
+DROP TABLE IF EXISTS ticket, payment, contact_person, passengers, passenger, reservation, flight, weekly_flight, route, weekday, airport, location, year, payer;
+DROP PROCEDURE IF EXISTS proc_name;
+
+# Creating table for the locations.
+CREATE TABLE location (location varchar(30), country varchar(30), CONSTRAINT pk_location PRIMARY KEY(location));
+
+# Creating table for the airports.
+CREATE TABLE airport (airport_code varchar(3), location varchar(30) NOT NULL, CONSTRAINT pk_airport PRIMARY KEY(airport_code), CONSTRAINT fk_airport_location FOREIGN KEY(location) REFERENCES location(location));
+
+# Creating table for the year.
+CREATE TABLE year (year integer, profit_factor double, CONSTRAINT pk_year PRIMARY KEY(year));
+
+# Creating table for the weekday.
+CREATE TABLE weekday (day varchar(30), year integer NOT NULL, weekday_factor double, CONSTRAINT pk_day_year PRIMARY KEY(day, year), CONSTRAINT fk_weekday_year FOREIGN KEY(year) REFERENCES year(year));
+
+# Creating table for the route.
+CREATE TABLE route (id integer, year integer NOT NULL, route_price double, arrival varchar(3) NOT NULL, departure varchar(3) NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_route_year FOREIGN KEY(year) REFERENCES year(year), CONSTRAINT fk_arrival_airport FOREIGN KEY(arrival) REFERENCES airport(airport_code), CONSTRAINT fk_departure_airport FOREIGN KEY(departure) REFERENCES airport(airport_code));
+
+# Creating table for the weekly_flight.
+CREATE TABLE weekly_flight (id integer, day varchar(30) NOT NULL, year integer NOT NULL, route integer NOT NULL, time time, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_weeklyflight_weekday FOREIGN KEY(day, year) REFERENCES weekday(day, year), CONSTRAINT fk_weeklyflight_route FOREIGN KEY(route) REFERENCES route(id));
+
+# Creating table for the flight.
+CREATE TABLE flight (flightnr integer, week integer, weekly_flight integer NOT NULL, CONSTRAINT pk_flightnr PRIMARY KEY(flightnr), CONSTRAINT fk_flight_weeklyflight FOREIGN KEY(weekly_flight) REFERENCES weekly_flight(id));
+
+# Creating table for the reservation.
+CREATE TABLE reservation (reservationnr integer, nrpassengers integer, flightnr integer NOT NULL, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_reservation_flight FOREIGN KEY(flightnr) REFERENCES flight(flightnr));
+
+# Creating table for the passenger.
+CREATE TABLE passenger(passportnr integer, name varchar(30), CONSTRAINT pk_passportnr PRIMARY KEY(passportnr));
+
+# Creating table for the passengers.
+CREATE TABLE passengers(reservationnr integer, passportnr integer, CONSTRAINT pk_reservationnr_passportnr PRIMARY KEY(reservationnr, passportnr), CONSTRAINT fk_passengers_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr), CONSTRAINT fk_passengers_reservation FOREIGN KEY(reservationnr) REFERENCES reservation(reservationnr));
+
+# Creating table for the contact_person
+CREATE TABLE contact_person(passportnr integer, email varchar(30), phonenr bigint, CONSTRAINT pk_passportnr PRIMARY KEY(passportnr), CONSTRAINT fk_contactperson_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
+
+# Creating table for the payer.
+CREATE TABLE payer(creditcardnr bigint, cardholder varchar(30), CONSTRAINT pk_creditcardnr PRIMARY KEY(creditcardnr));
+
+# Creating table payment
+CREATE TABLE payment(reservationnr integer NOT NULL, total_price double, creditcardnr bigint NOT NULL, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_payment_reservation FOREIGN KEY(reservationnr) REFERENCES reservation(reservationnr), CONSTRAINT fk_payment_payer FOREIGN KEY(creditcardnr) REFERENCES payer(creditcardnr)); 
+
+# Creating table ticket
+CREATE TABLE ticket(id integer, reservationnr integer NOT NULL, passportnr integer NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_ticket_payment FOREIGN KEY(reservationnr) REFERENCES payment(reservationnr), CONSTRAINT fk_ticket_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
+
+
+
+
+
+
+
+
+
+
