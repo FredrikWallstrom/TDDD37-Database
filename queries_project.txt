@@ -1,5 +1,9 @@
 DROP TABLE IF EXISTS ticket, payment, contact_person, passengers, passenger, reservation, flight, weekly_flight, route, weekday, airport, location, year, payer;
-DROP PROCEDURE IF EXISTS proc_name;
+DROP PROCEDURE IF EXISTS addYear;
+DROP PROCEDURE IF EXISTS addDay;
+
+
+# 2)
 
 # Creating table for the locations.
 CREATE TABLE location (location varchar(30), country varchar(30), CONSTRAINT pk_location PRIMARY KEY(location));
@@ -42,6 +46,33 @@ CREATE TABLE payment(reservationnr integer NOT NULL, total_price double, creditc
 
 # Creating table ticket
 CREATE TABLE ticket(id integer AUTO_INCREMENT, reservationnr integer NOT NULL, passportnr integer NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_ticket_payment FOREIGN KEY(reservationnr) REFERENCES payment(reservationnr), CONSTRAINT fk_ticket_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
+
+
+# 3)
+
+
+# (a) Insert a year
+
+delimiter //
+CREATE PROCEDURE addYear(IN year INT, IN factor DOUBLE) 
+BEGIN 
+INSERT INTO year
+VALUES(year, factor);
+END;
+//
+delimiter ; 
+
+
+# (b) Insert a day
+
+delimiter //
+CREATE PROCEDURE addDay(IN year INT, IN day VARCHAR(30), IN factor DOUBLE) 
+BEGIN 
+INSERT INTO weekday
+VALUES(day, year, factor);
+END;
+//
+delimiter ;
 
 
 
