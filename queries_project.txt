@@ -14,13 +14,13 @@ CREATE TABLE year (year integer, profit_factor double, CONSTRAINT pk_year PRIMAR
 CREATE TABLE weekday (day varchar(30), year integer NOT NULL, weekday_factor double, CONSTRAINT pk_day_year PRIMARY KEY(day, year), CONSTRAINT fk_weekday_year FOREIGN KEY(year) REFERENCES year(year));
 
 # Creating table for the route.
-CREATE TABLE route (id integer, year integer NOT NULL, route_price double, arrival varchar(3) NOT NULL, departure varchar(3) NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_route_year FOREIGN KEY(year) REFERENCES year(year), CONSTRAINT fk_arrival_airport FOREIGN KEY(arrival) REFERENCES airport(airport_code), CONSTRAINT fk_departure_airport FOREIGN KEY(departure) REFERENCES airport(airport_code));
+CREATE TABLE route (id integer AUTO_INCREMENT, year integer NOT NULL, route_price double, arrival varchar(3) NOT NULL, departure varchar(3) NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_route_year FOREIGN KEY(year) REFERENCES year(year), CONSTRAINT fk_arrival_airport FOREIGN KEY(arrival) REFERENCES airport(airport_code), CONSTRAINT fk_departure_airport FOREIGN KEY(departure) REFERENCES airport(airport_code));
 
 # Creating table for the weekly_flight.
-CREATE TABLE weekly_flight (id integer, day varchar(30) NOT NULL, year integer NOT NULL, route integer NOT NULL, time time, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_weeklyflight_weekday FOREIGN KEY(day, year) REFERENCES weekday(day, year), CONSTRAINT fk_weeklyflight_route FOREIGN KEY(route) REFERENCES route(id));
+CREATE TABLE weekly_flight (id integer AUTO_INCREMENT, day varchar(30) NOT NULL, year integer NOT NULL, route integer NOT NULL, time time, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_weeklyflight_weekday FOREIGN KEY(day, year) REFERENCES weekday(day, year), CONSTRAINT fk_weeklyflight_route FOREIGN KEY(route) REFERENCES route(id));
 
 # Creating table for the flight.
-CREATE TABLE flight (flightnr integer, week integer, weekly_flight integer NOT NULL, CONSTRAINT pk_flightnr PRIMARY KEY(flightnr), CONSTRAINT fk_flight_weeklyflight FOREIGN KEY(weekly_flight) REFERENCES weekly_flight(id));
+CREATE TABLE flight (flightnr integer AUTO_INCREMENT, week integer, weekly_flight integer NOT NULL, CONSTRAINT pk_flightnr PRIMARY KEY(flightnr), CONSTRAINT fk_flight_weeklyflight FOREIGN KEY(weekly_flight) REFERENCES weekly_flight(id));
 
 # Creating table for the reservation.
 CREATE TABLE reservation (reservationnr integer, nrpassengers integer, flightnr integer NOT NULL, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_reservation_flight FOREIGN KEY(flightnr) REFERENCES flight(flightnr));
@@ -41,7 +41,7 @@ CREATE TABLE payer(creditcardnr bigint, cardholder varchar(30), CONSTRAINT pk_cr
 CREATE TABLE payment(reservationnr integer NOT NULL, total_price double, creditcardnr bigint NOT NULL, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_payment_reservation FOREIGN KEY(reservationnr) REFERENCES reservation(reservationnr), CONSTRAINT fk_payment_payer FOREIGN KEY(creditcardnr) REFERENCES payer(creditcardnr)); 
 
 # Creating table ticket
-CREATE TABLE ticket(id integer, reservationnr integer NOT NULL, passportnr integer NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_ticket_payment FOREIGN KEY(reservationnr) REFERENCES payment(reservationnr), CONSTRAINT fk_ticket_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
+CREATE TABLE ticket(id integer AUTO_INCREMENT, reservationnr integer NOT NULL, passportnr integer NOT NULL, CONSTRAINT pk_id PRIMARY KEY(id), CONSTRAINT fk_ticket_payment FOREIGN KEY(reservationnr) REFERENCES payment(reservationnr), CONSTRAINT fk_ticket_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
 
 
 
