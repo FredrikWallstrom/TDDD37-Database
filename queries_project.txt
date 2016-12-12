@@ -1,9 +1,13 @@
-DROP TABLE IF EXISTS ticket, payment, contact_person, passengers, passenger, reservation, flight, weekly_flight, route, weekday, airport, location, year, payer;
+DROP TABLE IF EXISTS ticket, payment, passengers, reservation, contact_person, passenger, flight, weekly_flight, route, weekday, airport, location, year, payer;
 DROP PROCEDURE IF EXISTS addYear;
 DROP PROCEDURE IF EXISTS addDay;
 DROP PROCEDURE IF EXISTS addDestination;
 DROP PROCEDURE IF EXISTS addRoute;
 DROP PROCEDURE IF EXISTS addFlight;
+DROP PROCEDURE IF EXISTS addReservation;
+DROP PROCEDURE IF EXISTS addPassenger;
+DROP PROCEDURE IF EXISTS addContact;
+DROP PROCEDURE IF EXISTS addPayment;
 
 DROP FUNCTION IF EXISTS calculateFreeSeats;
 DROP FUNCTION IF EXISTS calculatePrice;
@@ -32,17 +36,17 @@ CREATE TABLE weekly_flight (id integer AUTO_INCREMENT, day varchar(10) NOT NULL,
 # Creating table for the flight.
 CREATE TABLE flight (flightnr integer AUTO_INCREMENT, week integer, weekly_flight integer NOT NULL, CONSTRAINT pk_flightnr PRIMARY KEY(flightnr), CONSTRAINT fk_flight_weeklyflight FOREIGN KEY(weekly_flight) REFERENCES weekly_flight(id));
 
-# Creating table for the reservation.
-CREATE TABLE reservation (reservationnr integer, nrpassengers integer, flightnr integer NOT NULL, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_reservation_flight FOREIGN KEY(flightnr) REFERENCES flight(flightnr));
-
 # Creating table for the passenger.
 CREATE TABLE passenger(passportnr integer, name varchar(30), CONSTRAINT pk_passportnr PRIMARY KEY(passportnr));
 
+# Creating table for the contact_person
+CREATE TABLE contact_person(passportnr integer,  email varchar(30), phonenr bigint, CONSTRAINT pk_passportnr PRIMARY KEY(passportnr), CONSTRAINT fk_contactperson_passportnr FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
+
+# Creating table for the reservation.
+CREATE TABLE reservation (reservationnr integer, nrpassengers integer, flightnr integer NOT NULL, contact_person integer, CONSTRAINT pk_reservationnr PRIMARY KEY(reservationnr), CONSTRAINT fk_reservation_flight FOREIGN KEY(flightnr) REFERENCES flight(flightnr), CONSTRAINT fk_reservation_contactperson FOREIGN KEY(contact_person) REFERENCES contact_person(passportnr));
+
 # Creating table for the passengers.
 CREATE TABLE passengers(reservationnr integer, passportnr integer, CONSTRAINT pk_reservationnr_passportnr PRIMARY KEY(reservationnr, passportnr), CONSTRAINT fk_passengers_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr), CONSTRAINT fk_passengers_reservation FOREIGN KEY(reservationnr) REFERENCES reservation(reservationnr));
-
-# Creating table for the contact_person
-CREATE TABLE contact_person(passportnr integer, email varchar(30), phonenr bigint, CONSTRAINT pk_passportnr PRIMARY KEY(passportnr), CONSTRAINT fk_contactperson_passenger FOREIGN KEY(passportnr) REFERENCES passenger(passportnr));
 
 # Creating table for the payer.
 CREATE TABLE payer(creditcardnr bigint, cardholder varchar(30), CONSTRAINT pk_creditcardnr PRIMARY KEY(creditcardnr));
@@ -60,7 +64,6 @@ CREATE TABLE ticket(id integer AUTO_INCREMENT, reservationnr integer NOT NULL, p
 # (a) Insert a year
 
 delimiter //
-
 CREATE PROCEDURE addYear(IN year INT, IN factor DOUBLE) 
 BEGIN 
 INSERT INTO year
@@ -150,6 +153,8 @@ END;
 //
 
 
+
+
 # b)
 
 CREATE FUNCTION calculatePrice(flightnumber INT)
@@ -175,7 +180,10 @@ END;
 
 
 
+
+
 # 5)
+
 CREATE TRIGGER generate_tickets AFTER INSERT ON payment
 
 FOR EACH ROW 
@@ -183,11 +191,11 @@ BEGIN
 	DECLARE nr_passengers INT;
 	DECLARE ticket_nr INT;
 	DECLARE passport_nr INT;
-	SELECT nrpassengers INTO nr_passengers from reservation where NEW.reservationnr = reservationnr;
+	SELECT COUNT(*) INTO nr_passengers from passengers where NEW.reservationnr = reservationnr;
 	WHILE nr_passengers > 0 DO
 		SET nr_passengers = nr_passengers -1;
 		inner_loop: WHILE 1 > 0 DO
-			SET ticket_nr = ROUND((RAND() * (99999 - 1))+1);
+			SET ticket_nr = ROUND((RAND() * (9999999 - 1))+1);
 			IF (SELECT COUNT(*) from ticket where id = ticket_nr) = 0 THEN
 				LEAVE inner_loop;
 			END IF;
@@ -200,51 +208,174 @@ END;
 //
 
 
+
+# 6)
+
+
+# a) Create a reservation on a specific flight
+
+CREATE PROCEDURE addReservation(IN departure_airport_code VARCHAR(3), IN arrival_airport_code VARCHAR(3), IN year_in INTEGER, IN week_in INTEGER, IN day_in VARCHAR(10), IN time_in TIME, IN number_of_passengers INT, OUT output_reservation_nr INTEGER)
+BEGIN
+DECLARE flight_nr INT;
+SELECT flightnr INTO flight_nr from flight where week = week_in AND weekly_flight = (SELECT id FROM weekly_flight where time = time_in AND year = year_in AND day = day_in AND route = (SELECT id FROM route where year = year_in AND arrival = arrival_airport_code AND departure = departure_airport_code));
+IF (flight_nr IS NULL) THEN
+	SELECT "There exist no flight for the given route, date and time" as "Message";
+ELSEIF calculateFreeSeats(flight_nr) >= number_of_passengers THEN
+	inner_loop: WHILE 1 > 0 DO
+			SET output_reservation_nr = ROUND((RAND() * (9999999 - 1))+1);
+			IF (SELECT COUNT(*) from reservation where reservationnr = output_reservation_nr) = 0 THEN
+				LEAVE inner_loop;
+			END IF;
+		END WHILE;
+	INSERT INTO reservation
+	VALUES(output_reservation_nr, number_of_passengers, flight_nr, NULL);
+	SELECT "OK" as "Message";
+ELSE
+	SELECT "There are not enough seats available on the chosen flight" as "Message";
+END IF;
+END;
+//
+
+
+
+# b) Add a passenger to a reservation
+
+
+CREATE PROCEDURE addPassenger(IN reservation_nr INTEGER, IN passport_nr INTEGER, IN name VARCHAR(30))
+BEGIN
+IF (SELECT COUNT(*) FROM reservation WHERE reservationnr = reservation_nr) = 0 THEN
+	SELECT "The given reservation number does not exist" as "Message";
+ELSEIF (SELECT COUNT(*) FROM payment WHERE reservationnr = reservation_nr) > 0 THEN
+	SELECT "The booking has already been payed and no futher passengers can be added" as "Message";
+ELSEIF ((SELECT nrpassengers FROM reservation WHERE reservationnr = reservation_nr) - (SELECT Count(*) FROM passengers WHERE reservationnr = reservation_nr)) > 0 THEN
+	IF ((SELECT COUNT(*) FROM passenger WHERE passportnr = passport_nr) = 0) THEN
+		INSERT INTO passenger
+		VALUES(passport_nr, name);
+	END IF;
+	INSERT INTO passengers
+	VALUES(reservation_nr, passport_nr);
+	SELECT "OK" as "Message";
+ELSE
+	SELECT "The reservation is full" as "Message";
+END IF;
+END;
+//
+
+
+
+# c) Add contact
+
+
+CREATE PROCEDURE addContact(IN reservation_nr INTEGER, IN passport_nr INTEGER, IN email VARCHAR(30), IN phone BIGINT)
+BEGIN
+IF (SELECT COUNT(*) FROM reservation WHERE reservationnr = reservation_nr) = 0 THEN
+	SELECT "The given reservation number does not exist" as "Message";
+ELSEIF (SELECT COUNT(*) FROM passengers WHERE passportnr = passport_nr AND reservationnr = reservation_nr) = 1 THEN
+	IF ((SELECT contact_person FROM reservation where reservationnr = reservation_nr) IS NOT NULL) THEN
+		SELECT "Reservation already has a contact person" as "Message";
+	ELSE
+		IF (SELECT COUNT(*) FROM contact_person WHERE passportnr = passport_nr) = 0 THEN
+			INSERT INTO contact_person
+			VALUES(passport_nr, email, phone);
+		END IF;
+		UPDATE reservation
+		SET contact_person = passport_nr WHERE reservationnr = reservation_nr;
+		SELECT "OK" as "Message";
+	END IF;
+ELSE 
+	SELECT "The person is not a passenger of the reservation" as "Message";
+END IF;
+END;
+//
+
+
+
+# d) Add payment
+
+
+CREATE PROCEDURE addPayment(IN reservation_nr INTEGER, IN cardholder_name VARCHAR(30), IN credit_card_number BIGINT)
+BEGIN
+declare free_seats_available INT;
+declare flight_nr INT;
+SELECT flightnr INTO flight_nr FROM reservation WHERE reservationnr = reservation_nr;
+IF (flight_nr IS NOT NULL) THEN
+	SET free_seats_available = calculateFreeSeats(flight_nr);
+	IF ((SELECT contact_person FROM reservation WHERE reservationnr = reservation_nr) IS NULL) THEN
+		SELECT "The reservation has no contact yet" as "Message";
+	ELSEIF free_seats_available >= (SELECT nrpassengers from reservation WHERE reservationnr = reservation_nr) THEN
+		IF (SELECT COUNT(*) FROM payer WHERE creditcardnr = credit_card_number) = 0 THEN
+			INSERT INTO payer
+			VALUES(credit_card_number, cardholder_name);
+		END IF;
+		INSERT INTO payment
+		VALUES(reservation_nr, calculatePrice(flight_nr), credit_card_number); 
+		SELECT "OK" as "Message";
+	ELSE
+		DELETE FROM passengers WHERE reservationnr = reservation_nr;
+		DELETE FROM reservation WHERE reservationnr = reservation_nr; 
+		SELECT "There are not enough seats available on the flight anymore, deleting reservation" as "Message";
+	END IF;
+ELSE
+	SELECT "The given reservation number does not exist" as "Message";
+END IF;
+END;
+//
 delimiter ;
 
-CALL addYear(2017, 5);
-CALL addYear(2018, 6);
-CALL addDay(2018, 'thursday', 4);
-CALL addDay(2017, 'monday', 3);
-CALL addDestination('arl', 'arlanda', 'sweden');
-CALL addDestination('cph', 'copenhagen', 'denmark');
-CALL addRoute('arl', 'cph', 2017, 50); 
-CALL addRoute('arl', 'cph', 2018, 40); 
-CALL addFlight('arl', 'cph', 2017, 'monday', '09:00:00');
-CALL addFlight('arl', 'cph', 2018, 'thursday', '09:00:00');
 
-INSERT INTO reservation
-VALUES(556, 3, 50);
-INSERT INTO reservation
-VALUES(557, 1, 50);
+#CALL addYear(2017, 5);
+#CALL addYear(2018, 6);
+#CALL addDay(2018, 'thursday', 4);
+#CALL addDay(2017, 'monday', 3);
+#CALL addDestination('arl', 'arlanda', 'sweden');
+#CALL addDestination('cph', 'copenhagen', 'denmark');
+#CALL addRoute('arl', 'cph', 2017, 50); 
+#CALL addRoute('arl', 'cph', 2018, 40); 
+#CALL addFlight('arl', 'cph', 2017, 'monday', '09:00:00');
+#CALL addFlight('arl', 'cph', 2018, 'thursday', '09:00:00');
+#CALL addReservation('arl', 'cph', 2017, 35, 'monday', '09:00:00', 40, @output_reservation_nr);
+#CALL addReservation('arl', 'cph', 2017, 35, 'monday', '09:00:00', 1, @output_reservation_nr_1);
+#CALL addPassenger(@output_reservation_nr, '1990000', 'Fredrik');
+#CALL addPassenger(@output_reservation_nr, '1990001', 'george');
+#CALL addPassenger(@output_reservation_nr_1, '1990000', 'Fredrik');
+#CALL addContact(@output_reservation_nr, '1990000', 'fre@gmail.com', 070543);
+#CALL addContact(@output_reservation_nr_1, '1990000', 'fre@gmail.com', 070543);
+#CALL addPayment(@output_reservation_nr, 'yousif', 454);
+#CALL addPayment(@output_reservation_nr_1, 'yousif', 454); 
 
-INSERT INTO passenger
-VALUES(42, "gustavv");
-INSERT INTO passenger
-VALUES(45645, "gustav");
-INSERT INTO passenger
-VALUES(456456, "george");
-INSERT INTO passenger
-VALUES(456, "fredde");
+#INSERT INTO reservation
+#VALUES(556, 3, 50);
+#INSERT INTO reservation
+#VALUES(557, 1, 50);
 
-INSERT INTO passengers
-VALUES(557,42);
-INSERT INTO passengers
-VALUES(556,45645);
-INSERT INTO passengers
-VALUES(556, 456456);
-INSERT INTO passengers
-VALUES(556,456);
+#INSERT INTO passenger
+#VALUES(42, "gustavv");
+#INSERT INTO passenger
+#VALUES(45645, "gustav");
+#INSERT INTO passenger
+#VALUES(456456, "george");
+#INSERT INTO passenger
+#VALUES(456, "fredde");
 
-INSERT INTO payer
-VALUES(111, "yousif");
-INSERT INTO payment
-VALUES(556, 1000,111);
-INSERT INTO payment
-VALUES(557, 1000,111);
+#INSERT INTO passengers
+#VALUES(557,42);
+#INSERT INTO passengers
+#VALUES(556,45645);
+#INSERT INTO passengers
+#VALUES(556, 456456);
+#INSERT INTO passengers
+#VALUES(556,456);
+
+#INSERT INTO payer
+#VALUES(111, "yousif");
+#INSERT INTO payment
+#VALUES(556, 1000,111);
+#INSERT INTO payment
+#VALUES(557, 1000,111);
 #select * from weekly_flight;
 #select calculatePrice(49);
 #select calculatePrice(100);
+
 
 
 
