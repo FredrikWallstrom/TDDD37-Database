@@ -12,6 +12,7 @@ DROP PROCEDURE IF EXISTS addPayment;
 DROP FUNCTION IF EXISTS calculateFreeSeats;
 DROP FUNCTION IF EXISTS calculatePrice;
 
+DROP VIEW if EXISTS allFlights;
 
 # 2)
 
@@ -321,6 +322,9 @@ END IF;
 END;
 //
 delimiter ;
+
+# 7) Create a view
+CREATE VIEW allFlights AS SELECT a1.location as departure_city_name, a2.location as destination_city_name, weekly_flight.time as departure_time, weekly_flight.day as departure_day, flight.week as departure_week, weekly_flight.year as departure_year, calculateFreeSeats(flight.flightnr) as nr_of_free_seats, calculatePrice(flight.flightnr) as current_price_per_seat FROM airport a1, airport a2, route, weekly_flight, flight WHERE flight.weekly_flight = weekly_flight.id AND weekly_flight.route = route.id AND route.departure = a1.airport_code AND route.arrival = a2.airport_code group by flight.flightnr;
 
 
 #CALL addYear(2017, 5);
