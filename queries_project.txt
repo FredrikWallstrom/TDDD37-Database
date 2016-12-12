@@ -297,6 +297,7 @@ END;
 CREATE PROCEDURE addPayment(IN reservation_nr INTEGER, IN cardholder_name VARCHAR(30), IN credit_card_number BIGINT)
 BEGIN
 declare free_seats_available INT;
+declare total_passengers INT;
 declare flight_nr INT;
 SELECT flightnr INTO flight_nr FROM reservation WHERE reservationnr = reservation_nr;
 IF (flight_nr IS NOT NULL) THEN
@@ -308,8 +309,9 @@ IF (flight_nr IS NOT NULL) THEN
 			INSERT INTO payer
 			VALUES(credit_card_number, cardholder_name);
 		END IF;
+		SELECT COUNT(*) INTO total_passengers FROM passengers where reservationnr = reservation_nr;
 		INSERT INTO payment
-		VALUES(reservation_nr, calculatePrice(flight_nr), credit_card_number); 
+		VALUES(reservation_nr, total_passengers * calculatePrice(flight_nr), credit_card_number); 
 		SELECT "OK" as "Message";
 	ELSE
 		DELETE FROM passengers WHERE reservationnr = reservation_nr;
