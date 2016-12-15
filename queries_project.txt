@@ -326,65 +326,8 @@ END;
 delimiter ;
 
 # 7) Create a view
+
 CREATE VIEW allFlights AS SELECT a1.location as departure_city_name, a2.location as destination_city_name, weekly_flight.time as departure_time, weekly_flight.day as departure_day, flight.week as departure_week, weekly_flight.year as departure_year, calculateFreeSeats(flight.flightnr) as nr_of_free_seats, calculatePrice(flight.flightnr) as current_price_per_seat FROM airport a1, airport a2, route, weekly_flight, flight WHERE flight.weekly_flight = weekly_flight.id AND weekly_flight.route = route.id AND route.departure = a1.airport_code AND route.arrival = a2.airport_code group by flight.flightnr;
-
-
-#CALL addYear(2017, 5);
-#CALL addYear(2018, 6);
-#CALL addDay(2018, 'thursday', 4);
-#CALL addDay(2017, 'monday', 3);
-#CALL addDestination('arl', 'arlanda', 'sweden');
-#CALL addDestination('cph', 'copenhagen', 'denmark');
-#CALL addRoute('arl', 'cph', 2017, 50); 
-#CALL addRoute('arl', 'cph', 2018, 40); 
-#CALL addFlight('arl', 'cph', 2017, 'monday', '09:00:00');
-#CALL addFlight('arl', 'cph', 2018, 'thursday', '09:00:00');
-#CALL addReservation('arl', 'cph', 2017, 35, 'monday', '09:00:00', 40, @output_reservation_nr);
-#CALL addReservation('arl', 'cph', 2017, 35, 'monday', '09:00:00', 1, @output_reservation_nr_1);
-#CALL addPassenger(@output_reservation_nr, '1990000', 'Fredrik');
-#CALL addPassenger(@output_reservation_nr, '1990001', 'george');
-#CALL addPassenger(@output_reservation_nr_1, '1990000', 'Fredrik');
-#CALL addContact(@output_reservation_nr, '1990000', 'fre@gmail.com', 070543);
-#CALL addContact(@output_reservation_nr_1, '1990000', 'fre@gmail.com', 070543);
-#CALL addPayment(@output_reservation_nr, 'yousif', 454);
-#CALL addPayment(@output_reservation_nr_1, 'yousif', 454); 
-
-#INSERT INTO reservation
-#VALUES(556, 3, 50);
-#INSERT INTO reservation
-#VALUES(557, 1, 50);
-
-#INSERT INTO passenger
-#VALUES(42, "gustavv");
-#INSERT INTO passenger
-#VALUES(45645, "gustav");
-#INSERT INTO passenger
-#VALUES(456456, "george");
-#INSERT INTO passenger
-#VALUES(456, "fredde");
-
-#INSERT INTO passengers
-#VALUES(557,42);
-#INSERT INTO passengers
-#VALUES(556,45645);
-#INSERT INTO passengers
-#VALUES(556, 456456);
-#INSERT INTO passengers
-#VALUES(556,456);
-
-#INSERT INTO payer
-#VALUES(111, "yousif");
-#INSERT INTO payment
-#VALUES(556, 1000,111);
-#INSERT INTO payment
-#VALUES(557, 1000,111);
-#select * from weekly_flight;
-#select calculatePrice(49);
-#select calculatePrice(100);
-
-
-
-
 
 
 
